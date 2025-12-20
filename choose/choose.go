@@ -144,82 +144,116 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		km := m.keymap
 		switch {
 		case key.Matches(msg, km.Down):
+			originalIndex := m.index
 			m.index++
 			if m.index >= len(m.items) {
 				m.index = 0
 				m.paginator.Page = 0
 			}
-			// Skip disabled items
-			for m.items[m.index].disabled {
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index++
+				visited++
 				if m.index >= len(m.items) {
 					m.index = 0
 					m.paginator.Page = 0
-					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
 				}
 			}
 			if m.index >= end {
 				m.paginator.NextPage()
 			}
 		case key.Matches(msg, km.Up):
+			originalIndex := m.index
 			m.index--
 			if m.index < 0 {
 				m.index = len(m.items) - 1
 				m.paginator.Page = m.paginator.TotalPages - 1
 			}
-			// Skip disabled items
-			for m.items[m.index].disabled {
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index--
+				visited++
 				if m.index < 0 {
 					m.index = len(m.items) - 1
 					m.paginator.Page = m.paginator.TotalPages - 1
-					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
 				}
 			}
 			if m.index < start {
 				m.paginator.PrevPage()
 			}
 		case key.Matches(msg, km.Right):
+			originalIndex := m.index
 			m.index = ordered.Clamp(m.index+m.height, 0, len(m.items)-1)
-			// Skip disabled items
-			for m.items[m.index].disabled {
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index++
+				visited++
 				if m.index >= len(m.items) {
 					m.index = len(m.items) - 1
 					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
 				}
 			}
 			m.paginator.NextPage()
 		case key.Matches(msg, km.Left):
+			originalIndex := m.index
 			m.index = ordered.Clamp(m.index-m.height, 0, len(m.items)-1)
-			// Skip disabled items
-			for m.items[m.index].disabled {
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index--
+				visited++
 				if m.index < 0 {
 					m.index = 0
 					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
 				}
 			}
 			m.paginator.PrevPage()
 		case key.Matches(msg, km.End):
+			originalIndex := m.index
 			m.index = len(m.items) - 1
-			// Skip disabled items backwards
-			for m.items[m.index].disabled {
+			// Skip disabled items backwards (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index--
+				visited++
 				if m.index < 0 {
 					m.index = 0
 					break
 				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
 			}
 			m.paginator.Page = m.paginator.TotalPages - 1
 		case key.Matches(msg, km.Home):
+			originalIndex := m.index
 			m.index = 0
-			// Skip disabled items forward
-			for m.items[m.index].disabled {
+			// Skip disabled items forward (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
 				m.index++
+				visited++
 				if m.index >= len(m.items) {
 					m.index = len(m.items) - 1
 					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
 				}
 			}
 			m.paginator.Page = 0
@@ -280,7 +314,12 @@ func (m model) selectAll() model {
 		if m.numSelected >= m.limit {
 			break // do not exceed given limit
 		}
-		if m.items[i].selected || m.items[i].disabled {
+		// Skip disabled items
+		if m.items[i].disabled {
+			continue
+		}
+		// Skip already selected items
+		if m.items[i].selected {
 			continue
 		}
 		m.items[i].selected = true

@@ -412,11 +412,13 @@ func (m *model) CursorUp() {
 		return
 	}
 	originalCursor := m.cursor
+	visited := 0
 	if m.reverse { //nolint:nestif
 		m.cursor = (m.cursor + 1) % len(m.matches)
-		// Skip disabled items
-		for m.disabledChoices[m.matches[m.cursor].Str] {
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
 			m.cursor = (m.cursor + 1) % len(m.matches)
+			visited++
 			if m.cursor == originalCursor {
 				break // All items are disabled, stay at current position
 			}
@@ -429,9 +431,10 @@ func (m *model) CursorUp() {
 		}
 	} else {
 		m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
-		// Skip disabled items
-		for m.disabledChoices[m.matches[m.cursor].Str] {
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
 			m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+			visited++
 			if m.cursor == originalCursor {
 				break // All items are disabled, stay at current position
 			}
@@ -450,11 +453,13 @@ func (m *model) CursorDown() {
 		return
 	}
 	originalCursor := m.cursor
+	visited := 0
 	if m.reverse { //nolint:nestif
 		m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
-		// Skip disabled items
-		for m.disabledChoices[m.matches[m.cursor].Str] {
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
 			m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+			visited++
 			if m.cursor == originalCursor {
 				break // All items are disabled, stay at current position
 			}
@@ -467,9 +472,10 @@ func (m *model) CursorDown() {
 		}
 	} else {
 		m.cursor = (m.cursor + 1) % len(m.matches)
-		// Skip disabled items
-		for m.disabledChoices[m.matches[m.cursor].Str] {
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
 			m.cursor = (m.cursor + 1) % len(m.matches)
+			visited++
 			if m.cursor == originalCursor {
 				break // All items are disabled, stay at current position
 			}
