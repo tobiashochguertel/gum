@@ -20,6 +20,7 @@ type Options struct {
 	CursorPrefix     string        `help:"Prefix to show on the cursor item (hidden if limit is 1)" default:"• " env:"GUM_CHOOSE_CURSOR_PREFIX"`
 	SelectedPrefix   string        `help:"Prefix to show on selected items (hidden if limit is 1)" default:"✓ " env:"GUM_CHOOSE_SELECTED_PREFIX"`
 	UnselectedPrefix string        `help:"Prefix to show on unselected items (hidden if limit is 1)" default:"• " env:"GUM_CHOOSE_UNSELECTED_PREFIX"`
+	DisabledPrefix   string        `help:"Prefix to show on disabled items" default:"- " env:"GUM_CHOOSE_DISABLED_PREFIX"`
 	Selected         []string      `help:"Options that should start as selected (selects all if given *)" default:"" env:"GUM_CHOOSE_SELECTED"`
 	SelectIfOne      bool          `help:"Select the given option if there is only one" group:"Selection"`
 	InputDelimiter   string        `help:"Option delimiter when reading from STDIN" default:"\n" env:"GUM_CHOOSE_INPUT_DELIMITER"`
@@ -28,8 +29,14 @@ type Options struct {
 	StripANSI        bool          `help:"Strip ANSI sequences when reading from STDIN" default:"true" negatable:"" env:"GUM_CHOOSE_STRIP_ANSI"`
 	Padding          string        `help:"Padding" default:"${defaultPadding}" group:"Style Flags" env:"GUM_CHOOSE_PADDING"`
 
+	// Experimental features
+	Experimental    bool   `help:"Enable experimental features" default:"false" env:"GUM_EXPERIMENTAL" group:"Experimental"`
+	ConfigDelimiter string `help:"Allows to set a delimiter, so options can be set as value::config" default:"::" env:"GUM_CHOOSE_CONFIG_DELIMITER" group:"Experimental"`
+	OptionAsJSON    bool   `help:"Parse options as JSON (array or JSONL)" default:"false" env:"GUM_CHOOSE_OPTION_AS_JSON" group:"Experimental"`
+
 	CursorStyle       style.Styles `embed:"" prefix:"cursor." set:"defaultForeground=212" envprefix:"GUM_CHOOSE_CURSOR_"`
 	HeaderStyle       style.Styles `embed:"" prefix:"header." set:"defaultForeground=99" envprefix:"GUM_CHOOSE_HEADER_"`
 	ItemStyle         style.Styles `embed:"" prefix:"item." hidden:"" envprefix:"GUM_CHOOSE_ITEM_"`
 	SelectedItemStyle style.Styles `embed:"" prefix:"selected." set:"defaultForeground=212" envprefix:"GUM_CHOOSE_SELECTED_"`
+	DisabledItemStyle style.Styles `embed:"" prefix:"disabled." set:"defaultForeground=240" envprefix:"GUM_CHOOSE_DISABLED_"`
 }
