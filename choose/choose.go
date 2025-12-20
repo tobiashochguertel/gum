@@ -97,25 +97,25 @@ func (k keymap) ShortHelp() []key.Binding {
 }
 
 type model struct {
-	height              int
-	padding             []int
-	cursor              string
-	selectedPrefix      string
-	unselectedPrefix    string
-	disabledPrefix      string
-	cursorPrefix        string
-	header              string
-	items               []item
-	quitting            bool
-	submitted           bool
-	index               int
-	limit               int
-	numSelected         int
-	currentOrder        int
-	paginator           paginator.Model
-	showHelp            bool
-	help                help.Model
-	keymap              keymap
+	height           int
+	padding          []int
+	cursor           string
+	selectedPrefix   string
+	unselectedPrefix string
+	disabledPrefix   string
+	cursorPrefix     string
+	header           string
+	items            []item
+	quitting         bool
+	submitted        bool
+	index            int
+	limit            int
+	numSelected      int
+	currentOrder     int
+	paginator        paginator.Model
+	showHelp         bool
+	help             help.Model
+	keymap           keymap
 
 	// styles
 	cursorStyle       lipgloss.Style

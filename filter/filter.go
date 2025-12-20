@@ -488,7 +488,7 @@ func (m *model) ToggleSelection() {
 	if m.disabledChoices[m.matches[m.cursor].Str] {
 		return
 	}
-	
+
 	if _, ok := m.selected[m.matches[m.cursor].Str]; ok {
 		delete(m.selected, m.matches[m.cursor].Str)
 		m.numSelected--
