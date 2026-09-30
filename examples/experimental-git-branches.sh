@@ -9,7 +9,7 @@ echo "Branches marked as 'current' or 'protected' are disabled"
 echo ""
 
 # Simulated branch data (in real scenario, you'd query git)
-cat <<EOF | /tmp/gum choose --experimental --option-as-json --limit=1
+cat <<EOF | gum choose --experimental --option-as-json --limit=1
 {"value":"main","label":"main (protected)","config":{"disabled":true}}
 {"value":"develop","label":"develop (current)","config":{"disabled":true}}
 {"value":"feature/new-ui","label":"feature/new-ui"}

@@ -6,7 +6,7 @@
 echo "=== File Selector (some files are read-only) ==="
 echo ""
 
-cat <<EOF | /tmp/gum filter --experimental --option-as-json
+cat <<EOF | gum filter --experimental --option-as-json
 {"value":"README.md","label":"README.md"}
 {"value":"config.yaml","label":"config.yaml (read-only)","config":{"disabled":true}}
 {"value":"main.go","label":"main.go"}

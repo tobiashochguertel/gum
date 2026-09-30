@@ -54,6 +54,42 @@ func TestParseJSONOptions(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name:    "empty array",
+			input:   `[]`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "array option missing value",
+			input:   `[{"label":"Option"}]`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "JSONL option missing value",
+			input:   `{"label":"Option"}`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "array option with empty value",
+			input:   `[{"value":""}]`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "JSONL option with empty value",
+			input:   `{"value":""}`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "JSONL with only blank lines",
+			input:   "\n\n",
+			want:    nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

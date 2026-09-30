@@ -8,16 +8,16 @@ echo ""
 echo "Select a task to work on (disabled tasks are blocked or in progress)"
 echo ""
 
-/tmp/gum choose --experimental \
+gum choose --experimental \
   --config-delimiter="::" \
   --header="Available Tasks:" \
   "Write documentation" \
   "Update dependencies" \
-  "Fix bug #123::{"disabled":true}" \
-  "Review PR #456 (in progress)::{"disabled":true}" \
+  'Fix bug #123::{"disabled":true}' \
+  'Review PR #456 (in progress)::{"disabled":true}' \
   "Deploy to staging" \
   "Run integration tests" \
-  "Update changelog::{"disabled":true}"
+  'Update changelog::{"disabled":true}'
 
 SELECTED=$?
 

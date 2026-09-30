@@ -44,7 +44,7 @@ gum choose --experimental \
   --config-delimiter="::" \
   "Available Option 1" \
   "Available Option 2" \
-  "Disabled Option::{"disabled":true}" \
+  'Disabled Option::{"disabled":true}' \
   "Available Option 3"
 ```
 
@@ -54,7 +54,7 @@ gum choose --experimental \
 gum choose --experimental \
   --label-delimiter=":" \
   --config-delimiter="::" \
-  "Display Text:actual_value::{"disabled":true}" \
+  'Display Text:actual_value::{"disabled":true}' \
   "Another Option:value2"
 ```
 

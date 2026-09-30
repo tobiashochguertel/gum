@@ -33,7 +33,7 @@ func ParseJSONOptions(input string) ([]Option, error) {
 		if err := json.Unmarshal([]byte(input), &opts); err != nil {
 			return nil, fmt.Errorf("failed to parse JSON array: %w", err)
 		}
-		return opts, nil
+		return validateOptions(opts)
 	}
 
 	// Parse as JSONL (one JSON object per line)
@@ -50,6 +50,18 @@ func ParseJSONOptions(input string) ([]Option, error) {
 		opts = append(opts, opt)
 	}
 
+	return validateOptions(opts)
+}
+
+func validateOptions(opts []Option) ([]Option, error) {
+	if len(opts) == 0 {
+		return nil, fmt.Errorf("at least one option is required")
+	}
+	for i, opt := range opts {
+		if opt.Value == "" {
+			return nil, fmt.Errorf("option %d has an empty value", i+1)
+		}
+	}
 	return opts, nil
 }
 

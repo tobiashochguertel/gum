@@ -91,6 +91,7 @@ func (o Options) Run() error {
 	}
 
 	choices := map[string]string{}
+	displayChoices := map[string]string{}
 	disabledChoices := map[string]bool{}
 	filteringChoices := []string{}
 	for _, opt := range parsedOptions {
@@ -100,6 +101,7 @@ func (o Options) Run() error {
 		}
 		s := ansi.Strip(displayText)
 		choices[s] = opt.Value
+		displayChoices[s] = displayText
 		disabledChoices[s] = opt.Config.Disabled
 		filteringChoices = append(filteringChoices, s)
 	}
@@ -114,7 +116,7 @@ func (o Options) Run() error {
 	}
 
 	if o.NoLimit {
-		o.Limit = len(o.Options)
+		o.Limit = len(parsedOptions)
 	}
 
 	// Check if the only match is not disabled before auto-selecting
@@ -133,6 +135,7 @@ func (o Options) Run() error {
 	top, right, bottom, left := style.ParsePadding(o.Padding)
 	m := model{
 		choices:               choices,
+		displayChoices:        displayChoices,
 		disabledChoices:       disabledChoices,
 		filteringChoices:      filteringChoices,
 		indicator:             o.Indicator,
@@ -185,6 +188,7 @@ func (o Options) Run() error {
 			}
 		}
 	}
+	m.normalizeCursor()
 
 	tm, err := tea.NewProgram(m, programOptions...).Run()
 	if err != nil {
@@ -201,7 +205,7 @@ func (o Options) Run() error {
 	// no need to further checks
 	if len(m.selected) > 0 {
 		o.checkSelected(m)
-	} else if len(m.matches) > m.cursor && m.cursor >= 0 {
+	} else if len(m.matches) > m.cursor && m.cursor >= 0 && !m.disabledChoices[m.matches[m.cursor].Str] {
 		tty.Println(choices[m.matches[m.cursor].Str])
 	}
 

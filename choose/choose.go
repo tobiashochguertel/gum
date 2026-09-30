@@ -18,7 +18,6 @@ import (
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/exp/ordered"
 )
 
 func defaultKeymap() keymap {
@@ -140,128 +139,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		start, end := m.paginator.GetSliceBounds(len(m.items))
 		km := m.keymap
 		switch {
 		case key.Matches(msg, km.Down):
-			originalIndex := m.index
-			m.index++
-			if m.index >= len(m.items) {
-				m.index = 0
-				m.paginator.Page = 0
-			}
-			// Skip disabled items (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index++
-				visited++
-				if m.index >= len(m.items) {
-					m.index = 0
-					m.paginator.Page = 0
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			if m.index >= end {
-				m.paginator.NextPage()
-			}
+			m.moveCursor(m.index+1, 1, true)
 		case key.Matches(msg, km.Up):
-			originalIndex := m.index
-			m.index--
-			if m.index < 0 {
-				m.index = len(m.items) - 1
-				m.paginator.Page = m.paginator.TotalPages - 1
-			}
-			// Skip disabled items (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index--
-				visited++
-				if m.index < 0 {
-					m.index = len(m.items) - 1
-					m.paginator.Page = m.paginator.TotalPages - 1
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			if m.index < start {
-				m.paginator.PrevPage()
-			}
+			m.moveCursor(m.index-1, -1, true)
 		case key.Matches(msg, km.Right):
-			originalIndex := m.index
-			m.index = ordered.Clamp(m.index+m.height, 0, len(m.items)-1)
-			// Skip disabled items (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index++
-				visited++
-				if m.index >= len(m.items) {
-					m.index = len(m.items) - 1
-					break
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			m.paginator.NextPage()
+			m.moveCursor(min(m.index+m.height, len(m.items)-1), 1, false)
 		case key.Matches(msg, km.Left):
-			originalIndex := m.index
-			m.index = ordered.Clamp(m.index-m.height, 0, len(m.items)-1)
-			// Skip disabled items (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index--
-				visited++
-				if m.index < 0 {
-					m.index = 0
-					break
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			m.paginator.PrevPage()
+			m.moveCursor(max(m.index-m.height, 0), -1, false)
 		case key.Matches(msg, km.End):
-			originalIndex := m.index
-			m.index = len(m.items) - 1
-			// Skip disabled items backwards (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index--
-				visited++
-				if m.index < 0 {
-					m.index = 0
-					break
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			m.paginator.Page = m.paginator.TotalPages - 1
+			m.moveCursor(len(m.items)-1, -1, false)
 		case key.Matches(msg, km.Home):
-			originalIndex := m.index
-			m.index = 0
-			// Skip disabled items forward (with safety check to prevent infinite loop)
-			visited := 0
-			for m.items[m.index].disabled && visited < len(m.items) {
-				m.index++
-				visited++
-				if m.index >= len(m.items) {
-					m.index = len(m.items) - 1
-					break
-				}
-				if m.index == originalIndex {
-					break // All items are disabled, stay at current
-				}
-			}
-			m.paginator.Page = 0
+			m.moveCursor(0, 1, false)
 		case key.Matches(msg, km.ToggleAll):
 			if m.limit <= 1 {
 				break
 			}
-			if m.numSelected < len(m.items) && m.numSelected < m.limit {
+			if m.numSelected < m.selectableItems() && m.numSelected < m.limit {
 				m = m.selectAll()
 			} else {
 				m = m.deselectAll()
@@ -292,12 +188,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentOrder++
 			}
 		case key.Matches(msg, km.Submit):
+			if m.items[m.index].disabled {
+				break
+			}
 			m.quitting = true
 			if m.limit <= 1 && m.numSelected < 1 {
-				// Don't select disabled items
-				if !m.items[m.index].disabled {
-					m.items[m.index].selected = true
-				}
+				m.items[m.index].selected = true
 			}
 			m.submitted = true
 			return m, tea.Quit
@@ -307,6 +203,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.paginator, cmd = m.paginator.Update(msg)
 	return m, cmd
+}
+
+func (m *model) moveCursor(target, direction int, wrap bool) {
+	if len(m.items) == 0 {
+		return
+	}
+	originalIndex := m.index
+	for visited := 0; visited < len(m.items); visited++ {
+		if target < 0 || target >= len(m.items) {
+			if !wrap {
+				break
+			}
+			target = (target + len(m.items)) % len(m.items)
+		}
+		if !m.items[target].disabled {
+			m.index = target
+			m.paginator.Page = m.index / m.height
+			return
+		}
+		target += direction
+	}
+	m.index = originalIndex
+	m.paginator.Page = m.index / m.height
+}
+
+func (m model) selectableItems() int {
+	count := 0
+	for _, item := range m.items {
+		if !item.disabled {
+			count++
+		}
+	}
+	return count
 }
 
 func (m model) selectAll() model {

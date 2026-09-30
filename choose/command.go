@@ -65,6 +65,8 @@ func (o Options) Run() error {
 				if ok {
 					opt.Label = label
 					opt.Value = value
+				} else {
+					return fmt.Errorf("invalid option format: %q", optStr)
 				}
 			}
 			parsedOptions = append(parsedOptions, opt)
@@ -135,6 +137,14 @@ func (o Options) Run() error {
 			}
 		}
 		items[i] = item{text: label, selected: isSelected, disabled: isDisabled, order: order}
+	}
+	if items[startingIndex].disabled {
+		for i := range items {
+			if !items[i].disabled {
+				startingIndex = i
+				break
+			}
+		}
 	}
 
 	// Use the pagination model to display the current and total number of

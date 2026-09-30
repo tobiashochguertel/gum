@@ -127,6 +127,7 @@ type model struct {
 	textinput             textinput.Model
 	viewport              *viewport.Model
 	choices               map[string]string
+	displayChoices        map[string]string
 	disabledChoices       map[string]bool
 	filteringChoices      []string
 	matches               []fuzzy.Match
@@ -215,7 +216,10 @@ func (m model) View() string {
 			s.WriteString(" ")
 		}
 
-		styledOption := m.choices[match.Str]
+		styledOption, ok := m.displayChoices[match.Str]
+		if !ok {
+			styledOption = match.Str
+		}
 		if len(match.MatchedIndexes) == 0 {
 			// No matches, just render the text.
 			s.WriteString(lineTextStyle.Render(styledOption))
@@ -241,6 +245,7 @@ func (m model) View() string {
 	}
 
 	m.viewport.SetContent(s.String())
+	m.syncViewport()
 
 	// View the input and the filtered choices
 	header := m.headerStyle.Render(m.header)
@@ -313,6 +318,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Interrupt
 		case key.Matches(msg, km.Submit):
+			if len(m.matches) == 0 || m.disabledChoices[m.matches[m.cursor].Str] {
+				break
+			}
 			m.quitting = true
 			m.submitted = true
 			return m, tea.Quit
@@ -321,11 +329,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, km.Up, km.NUp):
 			m.CursorUp()
 		case key.Matches(msg, km.Home):
-			m.cursor = 0
-			m.viewport.GotoTop()
+			m.moveCursor(0, 1, false)
 		case key.Matches(msg, km.End):
-			m.cursor = len(m.choices) - 1
-			m.viewport.GotoBottom()
+			m.moveCursor(len(m.matches)-1, -1, false)
 		case key.Matches(msg, km.ToggleAndNext):
 			if m.limit == 1 {
 				break // no op
@@ -347,7 +353,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.limit <= 1 {
 				break
 			}
-			if m.numSelected < len(m.matches) && m.numSelected < m.limit {
+			if m.numSelected < m.selectableMatches() && m.numSelected < m.limit {
 				m = m.selectAll()
 			} else {
 				m = m.deselectAll()
@@ -403,8 +409,65 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// It's possible that filtering items have caused fewer matches. So, ensure
 	// that the selected index is within the bounds of the number of matches.
-	m.cursor = ordered.Clamp(m.cursor, 0, len(m.matches)-1)
+	m.normalizeCursor()
+	m.syncViewport()
 	return m, tea.Batch(cmd, icmd)
+}
+
+func (m *model) normalizeCursor() {
+	if len(m.matches) == 0 {
+		m.cursor = 0
+		return
+	}
+	m.cursor = ordered.Clamp(m.cursor, 0, len(m.matches)-1)
+	originalCursor := m.cursor
+	for visited := 0; m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches); visited++ {
+		m.cursor = (m.cursor + 1) % len(m.matches)
+		if m.cursor == originalCursor {
+			return
+		}
+	}
+}
+
+func (m *model) moveCursor(target, direction int, wrap bool) {
+	if len(m.matches) == 0 {
+		return
+	}
+	originalCursor := m.cursor
+	for visited := 0; visited < len(m.matches); visited++ {
+		if target < 0 || target >= len(m.matches) {
+			if !wrap {
+				break
+			}
+			target = (target + len(m.matches)) % len(m.matches)
+		}
+		if !m.disabledChoices[m.matches[target].Str] {
+			m.cursor = target
+			m.syncViewport()
+			return
+		}
+		target += direction
+	}
+	m.cursor = originalCursor
+	m.syncViewport()
+}
+
+func (m *model) syncViewport() {
+	if len(m.matches) == 0 || m.viewport.Height <= 0 {
+		return
+	}
+	row := m.cursor
+	if m.reverse {
+		row = len(m.matches) - 1 - m.cursor
+	}
+	maxOffset := max(0, len(m.matches)-m.viewport.Height)
+	offset := ordered.Clamp(m.viewport.YOffset, 0, maxOffset)
+	if row < offset {
+		offset = row
+	} else if row >= offset+m.viewport.Height {
+		offset = row - m.viewport.Height + 1
+	}
+	m.viewport.SetYOffset(ordered.Clamp(offset, 0, maxOffset))
 }
 
 func (m *model) CursorUp() {
@@ -423,12 +486,6 @@ func (m *model) CursorUp() {
 				break // All items are disabled, stay at current position
 			}
 		}
-		if len(m.matches)-m.cursor <= m.viewport.YOffset {
-			m.viewport.ScrollUp(1)
-		}
-		if len(m.matches)-m.cursor > m.viewport.Height+m.viewport.YOffset {
-			m.viewport.SetYOffset(len(m.matches) - m.viewport.Height)
-		}
 	} else {
 		m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
 		// Skip disabled items (with safety check to prevent infinite loop)
@@ -439,13 +496,8 @@ func (m *model) CursorUp() {
 				break // All items are disabled, stay at current position
 			}
 		}
-		if m.cursor < m.viewport.YOffset {
-			m.viewport.ScrollUp(1)
-		}
-		if m.cursor >= m.viewport.YOffset+m.viewport.Height {
-			m.viewport.SetYOffset(len(m.matches) - m.viewport.Height)
-		}
 	}
+	m.syncViewport()
 }
 
 func (m *model) CursorDown() {
@@ -464,12 +516,6 @@ func (m *model) CursorDown() {
 				break // All items are disabled, stay at current position
 			}
 		}
-		if len(m.matches)-m.cursor > m.viewport.Height+m.viewport.YOffset {
-			m.viewport.ScrollDown(1)
-		}
-		if len(m.matches)-m.cursor <= m.viewport.YOffset {
-			m.viewport.GotoTop()
-		}
 	} else {
 		m.cursor = (m.cursor + 1) % len(m.matches)
 		// Skip disabled items (with safety check to prevent infinite loop)
@@ -480,16 +526,14 @@ func (m *model) CursorDown() {
 				break // All items are disabled, stay at current position
 			}
 		}
-		if m.cursor >= m.viewport.YOffset+m.viewport.Height {
-			m.viewport.ScrollDown(1)
-		}
-		if m.cursor < m.viewport.YOffset {
-			m.viewport.GotoTop()
-		}
 	}
+	m.syncViewport()
 }
 
 func (m *model) ToggleSelection() {
+	if len(m.matches) == 0 {
+		return
+	}
 	// Don't toggle disabled items
 	if m.disabledChoices[m.matches[m.cursor].Str] {
 		return
@@ -520,6 +564,16 @@ func (m model) selectAll() model {
 		m.numSelected++
 	}
 	return m
+}
+
+func (m model) selectableMatches() int {
+	count := 0
+	for _, match := range m.matches {
+		if !m.disabledChoices[match.Str] {
+			count++
+		}
+	}
+	return count
 }
 
 func (m model) deselectAll() model {

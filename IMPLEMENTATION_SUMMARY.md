@@ -61,15 +61,12 @@ This implementation adds experimental features to the `gum choose` and `gum filt
 ## Testing
 
 ### Unit Tests
-- `internal/options/option_test.go`: 15 test cases covering all parsing scenarios
-- All edge cases tested (empty input, invalid JSON, missing fields, etc.)
-
-### Integration Tests
-- Automated test script validates all features end-to-end
-- Tests non-interactive usage with timeouts
-- Verifies help output includes experimental flags
+- `internal/options/option_test.go`: 21 test cases covering all parsing scenarios
+- Edge cases include empty input, invalid JSON, empty arrays, and missing or empty values.
 
 ### Example Scripts
+The following scripts demonstrate interactive command usage; they are examples rather than automated integration tests.
+
 1. `experimental-git-branches.sh`: Branch management with protected branches
 2. `experimental-server-deployment.sh`: Server selection with status indicators
 3. `experimental-task-manager.sh`: Task selection with blocked items
@@ -82,7 +79,7 @@ This implementation adds experimental features to the `gum choose` and `gum filt
 gum choose --experimental \
   --config-delimiter="::" \
   "Available" \
-  "Disabled::{"disabled":true}" \
+  'Disabled::{"disabled":true}' \
   "Another Available"
 ```
 
@@ -98,7 +95,7 @@ echo '[
 ```bash
 export GUM_EXPERIMENTAL=true
 export GUM_CHOOSE_CONFIG_DELIMITER="::"
-gum choose "Option 1" "Option 2::{"disabled":true}"
+gum choose "Option 1" 'Option 2::{"disabled":true}'
 ```
 
 ## Files Modified

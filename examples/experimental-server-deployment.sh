@@ -8,7 +8,7 @@ echo ""
 echo "Select servers to deploy to (disabled servers are offline or in maintenance)"
 echo ""
 
-cat <<EOF | /tmp/gum choose --experimental --option-as-json --no-limit
+cat <<EOF | gum choose --experimental --option-as-json --no-limit
 {"value":"prod-web-01","label":"Production Web Server 01 (online)"}
 {"value":"prod-web-02","label":"Production Web Server 02 (maintenance)","config":{"disabled":true}}
 {"value":"prod-api-01","label":"Production API Server 01 (online)"}
