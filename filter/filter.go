@@ -127,6 +127,7 @@ type model struct {
 	textinput             textinput.Model
 	viewport              *viewport.Model
 	choices               map[string]string
+	disabledChoices       map[string]bool
 	filteringChoices      []string
 	matches               []fuzzy.Match
 	cursor                int
@@ -137,6 +138,7 @@ type model struct {
 	indicator             string
 	selectedPrefix        string
 	unselectedPrefix      string
+	disabledPrefix        string
 	height                int
 	padding               []int
 	quitting              bool
@@ -144,9 +146,11 @@ type model struct {
 	matchStyle            lipgloss.Style
 	textStyle             lipgloss.Style
 	cursorTextStyle       lipgloss.Style
+	disabledTextStyle     lipgloss.Style
 	indicatorStyle        lipgloss.Style
 	selectedPrefixStyle   lipgloss.Style
 	unselectedPrefixStyle lipgloss.Style
+	disabledPrefixStyle   lipgloss.Style
 	reverse               bool
 	fuzzy                 bool
 	sort                  bool
@@ -196,8 +200,14 @@ func (m model) View() string {
 			lineTextStyle = m.textStyle
 		}
 
+		// Check if item is disabled
+		isDisabled := m.disabledChoices[match.Str]
+
 		// If there are multiple selections mark them, otherwise leave an empty space
-		if _, ok := m.selected[match.Str]; ok {
+		if isDisabled {
+			s.WriteString(m.disabledPrefixStyle.Render(m.disabledPrefix))
+			lineTextStyle = m.disabledTextStyle
+		} else if _, ok := m.selected[match.Str]; ok {
 			s.WriteString(m.selectedPrefixStyle.Render(m.selectedPrefix))
 		} else if m.limit > 1 {
 			s.WriteString(m.unselectedPrefixStyle.Render(m.unselectedPrefix))
@@ -401,8 +411,18 @@ func (m *model) CursorUp() {
 	if len(m.matches) == 0 {
 		return
 	}
+	originalCursor := m.cursor
+	visited := 0
 	if m.reverse { //nolint:nestif
 		m.cursor = (m.cursor + 1) % len(m.matches)
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
+			m.cursor = (m.cursor + 1) % len(m.matches)
+			visited++
+			if m.cursor == originalCursor {
+				break // All items are disabled, stay at current position
+			}
+		}
 		if len(m.matches)-m.cursor <= m.viewport.YOffset {
 			m.viewport.ScrollUp(1)
 		}
@@ -411,6 +431,14 @@ func (m *model) CursorUp() {
 		}
 	} else {
 		m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
+			m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+			visited++
+			if m.cursor == originalCursor {
+				break // All items are disabled, stay at current position
+			}
+		}
 		if m.cursor < m.viewport.YOffset {
 			m.viewport.ScrollUp(1)
 		}
@@ -424,8 +452,18 @@ func (m *model) CursorDown() {
 	if len(m.matches) == 0 {
 		return
 	}
+	originalCursor := m.cursor
+	visited := 0
 	if m.reverse { //nolint:nestif
 		m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
+			m.cursor = (m.cursor - 1 + len(m.matches)) % len(m.matches)
+			visited++
+			if m.cursor == originalCursor {
+				break // All items are disabled, stay at current position
+			}
+		}
 		if len(m.matches)-m.cursor > m.viewport.Height+m.viewport.YOffset {
 			m.viewport.ScrollDown(1)
 		}
@@ -434,6 +472,14 @@ func (m *model) CursorDown() {
 		}
 	} else {
 		m.cursor = (m.cursor + 1) % len(m.matches)
+		// Skip disabled items (with safety check to prevent infinite loop)
+		for m.disabledChoices[m.matches[m.cursor].Str] && visited < len(m.matches) {
+			m.cursor = (m.cursor + 1) % len(m.matches)
+			visited++
+			if m.cursor == originalCursor {
+				break // All items are disabled, stay at current position
+			}
+		}
 		if m.cursor >= m.viewport.YOffset+m.viewport.Height {
 			m.viewport.ScrollDown(1)
 		}
@@ -444,6 +490,11 @@ func (m *model) CursorDown() {
 }
 
 func (m *model) ToggleSelection() {
+	// Don't toggle disabled items
+	if m.disabledChoices[m.matches[m.cursor].Str] {
+		return
+	}
+
 	if _, ok := m.selected[m.matches[m.cursor].Str]; ok {
 		delete(m.selected, m.matches[m.cursor].Str)
 		m.numSelected--
@@ -457,6 +508,10 @@ func (m model) selectAll() model {
 	for i := range m.matches {
 		if m.numSelected >= m.limit {
 			break // do not exceed given limit
+		}
+		// Don't select disabled items
+		if m.disabledChoices[m.matches[i].Str] {
+			continue
 		}
 		if _, ok := m.selected[m.matches[i].Str]; ok {
 			continue

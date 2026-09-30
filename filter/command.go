@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/gum/internal/files"
+	"github.com/charmbracelet/gum/internal/options"
 	"github.com/charmbracelet/gum/internal/stdin"
 	"github.com/charmbracelet/gum/internal/timeout"
 	"github.com/charmbracelet/gum/internal/tty"
@@ -46,16 +47,42 @@ func (o Options) Run() error {
 		return errors.New("no options provided, see `gum filter --help`")
 	}
 
+	// Parse options based on experimental flags
+	var parsedOptions []options.Option
+	var err error
+
+	if o.Experimental && o.OptionAsJSON {
+		// Parse as JSON/JSONL
+		parsedOptions, err = options.ParseJSONOptions(strings.Join(o.Options, "\n"))
+		if err != nil {
+			return fmt.Errorf("failed to parse JSON options: %w", err)
+		}
+	} else if o.Experimental && o.ConfigDelimiter != "" {
+		// Parse with config delimiter (note: filter doesn't have label delimiter by default)
+		for _, optStr := range o.Options {
+			opt, err := options.ParseOptionsWithDelimiters(optStr, "", o.ConfigDelimiter)
+			if err != nil {
+				return fmt.Errorf("failed to parse option %q: %w", optStr, err)
+			}
+			parsedOptions = append(parsedOptions, opt)
+		}
+	} else {
+		// Standard parsing (legacy mode)
+		for _, optStr := range o.Options {
+			parsedOptions = append(parsedOptions, options.Option{Value: optStr})
+		}
+	}
+
 	ctx, cancel := timeout.Context(o.Timeout)
 	defer cancel()
 
-	options := []tea.ProgramOption{
+	programOptions := []tea.ProgramOption{
 		tea.WithOutput(os.Stderr),
 		tea.WithReportFocus(),
 		tea.WithContext(ctx),
 	}
 	if o.Height == 0 {
-		options = append(options, tea.WithAltScreen())
+		programOptions = append(programOptions, tea.WithAltScreen())
 	}
 
 	var matches []fuzzy.Match
@@ -64,12 +91,19 @@ func (o Options) Run() error {
 	}
 
 	choices := map[string]string{}
+	disabledChoices := map[string]bool{}
 	filteringChoices := []string{}
-	for _, opt := range o.Options {
-		s := ansi.Strip(opt)
-		choices[s] = opt
+	for _, opt := range parsedOptions {
+		displayText := opt.Value
+		if opt.Label != "" {
+			displayText = opt.Label
+		}
+		s := ansi.Strip(displayText)
+		choices[s] = opt.Value
+		disabledChoices[s] = opt.Config.Disabled
 		filteringChoices = append(filteringChoices, s)
 	}
+
 	switch {
 	case o.Value != "" && o.Fuzzy:
 		matches = fuzzy.Find(o.Value, filteringChoices)
@@ -83,8 +117,9 @@ func (o Options) Run() error {
 		o.Limit = len(o.Options)
 	}
 
-	if o.SelectIfOne && len(matches) == 1 {
-		tty.Println(matches[0].Str)
+	// Check if the only match is not disabled before auto-selecting
+	if o.SelectIfOne && len(matches) == 1 && !disabledChoices[matches[0].Str] {
+		tty.Println(choices[matches[0].Str])
 		return nil
 	}
 
@@ -98,6 +133,7 @@ func (o Options) Run() error {
 	top, right, bottom, left := style.ParsePadding(o.Padding)
 	m := model{
 		choices:               choices,
+		disabledChoices:       disabledChoices,
 		filteringChoices:      filteringChoices,
 		indicator:             o.Indicator,
 		matches:               matches,
@@ -109,10 +145,13 @@ func (o Options) Run() error {
 		selectedPrefix:        o.SelectedPrefix,
 		unselectedPrefixStyle: o.UnselectedPrefixStyle.ToLipgloss(),
 		unselectedPrefix:      o.UnselectedPrefix,
+		disabledPrefixStyle:   o.DisabledPrefixStyle.ToLipgloss(),
+		disabledPrefix:        o.DisabledPrefix,
 		matchStyle:            o.MatchStyle.ToLipgloss(),
 		headerStyle:           o.HeaderStyle.ToLipgloss(),
 		textStyle:             o.TextStyle.ToLipgloss(),
 		cursorTextStyle:       o.CursorTextStyle.ToLipgloss(),
+		disabledTextStyle:     o.DisabledTextStyle.ToLipgloss(),
 		height:                o.Height,
 		padding:               []int{top, right, bottom, left},
 		selected:              make(map[string]struct{}),
@@ -130,6 +169,10 @@ func (o Options) Run() error {
 	currentSelected := 0
 	if len(o.Selected) > 0 {
 		for i, option := range matches {
+			// Don't select disabled items
+			if disabledChoices[option.Str] {
+				continue
+			}
 			if currentSelected >= o.Limit || (!isSelectAll && !slices.Contains(o.Selected, option.Str)) {
 				continue
 			}
@@ -143,7 +186,7 @@ func (o Options) Run() error {
 		}
 	}
 
-	tm, err := tea.NewProgram(m, options...).Run()
+	tm, err := tea.NewProgram(m, programOptions...).Run()
 	if err != nil {
 		return fmt.Errorf("unable to run filter: %w", err)
 	}
@@ -159,7 +202,7 @@ func (o Options) Run() error {
 	if len(m.selected) > 0 {
 		o.checkSelected(m)
 	} else if len(m.matches) > m.cursor && m.cursor >= 0 {
-		tty.Println(m.matches[m.cursor].Str)
+		tty.Println(choices[m.matches[m.cursor].Str])
 	}
 
 	return nil
@@ -168,7 +211,7 @@ func (o Options) Run() error {
 func (o Options) checkSelected(m model) {
 	out := []string{}
 	for k := range m.selected {
-		out = append(out, k)
+		out = append(out, m.choices[k])
 	}
 	tty.Println(strings.Join(out, o.OutputDelimiter))
 }

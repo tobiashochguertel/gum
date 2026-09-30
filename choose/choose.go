@@ -102,6 +102,7 @@ type model struct {
 	cursor           string
 	selectedPrefix   string
 	unselectedPrefix string
+	disabledPrefix   string
 	cursorPrefix     string
 	header           string
 	items            []item
@@ -121,11 +122,13 @@ type model struct {
 	headerStyle       lipgloss.Style
 	itemStyle         lipgloss.Style
 	selectedItemStyle lipgloss.Style
+	disabledItemStyle lipgloss.Style
 }
 
 type item struct {
 	text     string
 	selected bool
+	disabled bool
 	order    int
 }
 
@@ -141,34 +144,118 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		km := m.keymap
 		switch {
 		case key.Matches(msg, km.Down):
+			originalIndex := m.index
 			m.index++
 			if m.index >= len(m.items) {
 				m.index = 0
 				m.paginator.Page = 0
 			}
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index++
+				visited++
+				if m.index >= len(m.items) {
+					m.index = 0
+					m.paginator.Page = 0
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			if m.index >= end {
 				m.paginator.NextPage()
 			}
 		case key.Matches(msg, km.Up):
+			originalIndex := m.index
 			m.index--
 			if m.index < 0 {
 				m.index = len(m.items) - 1
 				m.paginator.Page = m.paginator.TotalPages - 1
 			}
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index--
+				visited++
+				if m.index < 0 {
+					m.index = len(m.items) - 1
+					m.paginator.Page = m.paginator.TotalPages - 1
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			if m.index < start {
 				m.paginator.PrevPage()
 			}
 		case key.Matches(msg, km.Right):
+			originalIndex := m.index
 			m.index = ordered.Clamp(m.index+m.height, 0, len(m.items)-1)
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index++
+				visited++
+				if m.index >= len(m.items) {
+					m.index = len(m.items) - 1
+					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			m.paginator.NextPage()
 		case key.Matches(msg, km.Left):
+			originalIndex := m.index
 			m.index = ordered.Clamp(m.index-m.height, 0, len(m.items)-1)
+			// Skip disabled items (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index--
+				visited++
+				if m.index < 0 {
+					m.index = 0
+					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			m.paginator.PrevPage()
 		case key.Matches(msg, km.End):
+			originalIndex := m.index
 			m.index = len(m.items) - 1
+			// Skip disabled items backwards (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index--
+				visited++
+				if m.index < 0 {
+					m.index = 0
+					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			m.paginator.Page = m.paginator.TotalPages - 1
 		case key.Matches(msg, km.Home):
+			originalIndex := m.index
 			m.index = 0
+			// Skip disabled items forward (with safety check to prevent infinite loop)
+			visited := 0
+			for m.items[m.index].disabled && visited < len(m.items) {
+				m.index++
+				visited++
+				if m.index >= len(m.items) {
+					m.index = len(m.items) - 1
+					break
+				}
+				if m.index == originalIndex {
+					break // All items are disabled, stay at current
+				}
+			}
 			m.paginator.Page = 0
 		case key.Matches(msg, km.ToggleAll):
 			if m.limit <= 1 {
@@ -190,6 +277,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break // no op
 			}
 
+			// Don't allow toggling disabled items
+			if m.items[m.index].disabled {
+				break
+			}
+
 			if m.items[m.index].selected {
 				m.items[m.index].selected = false
 				m.numSelected--
@@ -202,7 +294,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, km.Submit):
 			m.quitting = true
 			if m.limit <= 1 && m.numSelected < 1 {
-				m.items[m.index].selected = true
+				// Don't select disabled items
+				if !m.items[m.index].disabled {
+					m.items[m.index].selected = true
+				}
 			}
 			m.submitted = true
 			return m, tea.Quit
@@ -219,6 +314,11 @@ func (m model) selectAll() model {
 		if m.numSelected >= m.limit {
 			break // do not exceed given limit
 		}
+		// Skip disabled items
+		if m.items[i].disabled {
+			continue
+		}
+		// Skip already selected items
 		if m.items[i].selected {
 			continue
 		}
@@ -255,7 +355,9 @@ func (m model) View() string {
 			s.WriteString(strings.Repeat(" ", lipgloss.Width(m.cursor)))
 		}
 
-		if item.selected {
+		if item.disabled {
+			s.WriteString(m.disabledItemStyle.Render(m.disabledPrefix + item.text))
+		} else if item.selected {
 			s.WriteString(m.selectedItemStyle.Render(m.selectedPrefix + item.text))
 		} else if i == m.index%m.height {
 			s.WriteString(m.cursorStyle.Render(m.cursorPrefix + item.text))

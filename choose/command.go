@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/gum/internal/options"
 	"github.com/charmbracelet/gum/internal/stdin"
 	"github.com/charmbracelet/gum/internal/timeout"
 	"github.com/charmbracelet/gum/internal/tty"
@@ -36,28 +37,57 @@ func (o Options) Run() error {
 		o.Options = strings.Split(input, o.InputDelimiter)
 	}
 
-	// normalize options into a map
-	options := map[string]string{}
-	// keep the labels in the user-provided order
-	var labels []string //nolint:prealloc
-	for _, opt := range o.Options {
-		if o.LabelDelimiter == "" {
-			options[opt] = opt
-			continue
+	// Parse options based on experimental flags
+	var parsedOptions []options.Option
+	var err error
+
+	if o.Experimental && o.OptionAsJSON {
+		// Parse as JSON/JSONL
+		parsedOptions, err = options.ParseJSONOptions(strings.Join(o.Options, "\n"))
+		if err != nil {
+			return fmt.Errorf("failed to parse JSON options: %w", err)
 		}
-		label, value, ok := strings.Cut(opt, o.LabelDelimiter)
-		if !ok {
-			return fmt.Errorf("invalid option format: %q", opt)
+	} else if o.Experimental && o.ConfigDelimiter != "" {
+		// Parse with config delimiter
+		for _, optStr := range o.Options {
+			opt, err := options.ParseOptionsWithDelimiters(optStr, o.LabelDelimiter, o.ConfigDelimiter)
+			if err != nil {
+				return fmt.Errorf("failed to parse option %q: %w", optStr, err)
+			}
+			parsedOptions = append(parsedOptions, opt)
 		}
-		labels = append(labels, label)
-		options[label] = value
-	}
-	if o.LabelDelimiter != "" {
-		o.Options = labels
+	} else {
+		// Standard parsing (legacy mode)
+		for _, optStr := range o.Options {
+			opt := options.Option{Value: optStr}
+			if o.LabelDelimiter != "" {
+				label, value, ok := strings.Cut(optStr, o.LabelDelimiter)
+				if ok {
+					opt.Label = label
+					opt.Value = value
+				}
+			}
+			parsedOptions = append(parsedOptions, opt)
+		}
 	}
 
-	if o.SelectIfOne && len(o.Options) == 1 {
-		fmt.Println(options[o.Options[0]])
+	// Build options map and labels list
+	optionsMap := map[string]string{}
+	optionsDisabled := map[string]bool{}
+	var labels []string
+
+	for _, opt := range parsedOptions {
+		displayText := opt.Value
+		if opt.Label != "" {
+			displayText = opt.Label
+		}
+		labels = append(labels, displayText)
+		optionsMap[displayText] = opt.Value
+		optionsDisabled[displayText] = opt.Config.Disabled
+	}
+
+	if o.SelectIfOne && len(labels) == 1 && !optionsDisabled[labels[0]] {
+		fmt.Println(optionsMap[labels[0]])
 		return nil
 	}
 
@@ -70,11 +100,11 @@ func (o Options) Run() error {
 	}
 
 	if o.NoLimit {
-		o.Limit = len(o.Options) + 1
+		o.Limit = len(labels) + 1
 	}
 
 	if o.Ordered {
-		slices.SortFunc(o.Options, strings.Compare)
+		slices.SortFunc(labels, strings.Compare)
 	}
 
 	isSelectAll := len(o.Selected) == 1 && o.Selected[0] == "*"
@@ -85,11 +115,12 @@ func (o Options) Run() error {
 	hasSelectedItems := len(o.Selected) > 0
 	startingIndex := 0
 	currentOrder := 0
-	items := make([]item, len(o.Options))
-	for i, option := range o.Options {
+	items := make([]item, len(labels))
+	for i, label := range labels {
 		var order int
+		isDisabled := optionsDisabled[label]
 		// Check if the option should be selected.
-		isSelected := hasSelectedItems && currentSelected < o.Limit && (isSelectAll || slices.Contains(o.Selected, option))
+		isSelected := !isDisabled && hasSelectedItems && currentSelected < o.Limit && (isSelectAll || slices.Contains(o.Selected, label))
 		// If the option is selected then increment the current selected count.
 		if isSelected {
 			if o.Limit == 1 {
@@ -103,7 +134,7 @@ func (o Options) Run() error {
 				currentOrder++
 			}
 		}
-		items[i] = item{text: option, selected: isSelected, order: order}
+		items[i] = item{text: label, selected: isSelected, disabled: isDisabled, order: order}
 	}
 
 	// Use the pagination model to display the current and total number of
@@ -135,6 +166,7 @@ func (o Options) Run() error {
 		header:            o.Header,
 		selectedPrefix:    o.SelectedPrefix,
 		unselectedPrefix:  o.UnselectedPrefix,
+		disabledPrefix:    o.DisabledPrefix,
 		cursorPrefix:      o.CursorPrefix,
 		items:             items,
 		limit:             o.Limit,
@@ -143,6 +175,7 @@ func (o Options) Run() error {
 		headerStyle:       o.HeaderStyle.ToLipgloss(),
 		itemStyle:         o.ItemStyle.ToLipgloss(),
 		selectedItemStyle: o.SelectedItemStyle.ToLipgloss(),
+		disabledItemStyle: o.DisabledItemStyle.ToLipgloss(),
 		numSelected:       currentSelected,
 		showHelp:          o.ShowHelp,
 		help:              help.New(),
@@ -174,7 +207,7 @@ func (o Options) Run() error {
 	var out []string
 	for _, item := range m.items {
 		if item.selected {
-			out = append(out, options[item.text])
+			out = append(out, optionsMap[item.text])
 		}
 	}
 	tty.Println(strings.Join(out, o.OutputDelimiter))

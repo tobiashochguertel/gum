@@ -22,10 +22,13 @@ type Options struct {
 	SelectedPrefixStyle   style.Styles  `embed:"" prefix:"selected-indicator." set:"defaultForeground=212" envprefix:"GUM_FILTER_SELECTED_PREFIX_"`
 	UnselectedPrefix      string        `help:"Character to indicate unselected items (hidden if limit is 1)" default:" ○ " env:"GUM_FILTER_UNSELECTED_PREFIX"`
 	UnselectedPrefixStyle style.Styles  `embed:"" prefix:"unselected-prefix." set:"defaultForeground=240" envprefix:"GUM_FILTER_UNSELECTED_PREFIX_"`
+	DisabledPrefix        string        `help:"Character to indicate disabled items" default:" - " env:"GUM_FILTER_DISABLED_PREFIX"`
+	DisabledPrefixStyle   style.Styles  `embed:"" prefix:"disabled-prefix." set:"defaultForeground=240,defaultFaint=true" envprefix:"GUM_FILTER_DISABLED_PREFIX_"`
 	HeaderStyle           style.Styles  `embed:"" prefix:"header." set:"defaultForeground=99" envprefix:"GUM_FILTER_HEADER_"`
 	Header                string        `help:"Header value" default:"" env:"GUM_FILTER_HEADER"`
 	TextStyle             style.Styles  `embed:"" prefix:"text." envprefix:"GUM_FILTER_TEXT_"`
 	CursorTextStyle       style.Styles  `embed:"" prefix:"cursor-text." envprefix:"GUM_FILTER_CURSOR_TEXT_"`
+	DisabledTextStyle     style.Styles  `embed:"" prefix:"disabled-text." set:"defaultForeground=240,defaultFaint=true" envprefix:"GUM_FILTER_DISABLED_TEXT_"`
 	MatchStyle            style.Styles  `embed:"" prefix:"match." set:"defaultForeground=212" envprefix:"GUM_FILTER_MATCH_"`
 	Placeholder           string        `help:"Placeholder value" default:"Filter..." env:"GUM_FILTER_PLACEHOLDER"`
 	Prompt                string        `help:"Prompt to display" default:"> " env:"GUM_FILTER_PROMPT"`
@@ -42,6 +45,11 @@ type Options struct {
 	OutputDelimiter       string        `help:"Option delimiter when writing to STDOUT" default:"\n" env:"GUM_FILTER_OUTPUT_DELIMITER"`
 	StripANSI             bool          `help:"Strip ANSI sequences when reading from STDIN" default:"true" negatable:"" env:"GUM_FILTER_STRIP_ANSI"`
 	Padding               string        `help:"Padding" default:"${defaultPadding}" group:"Style Flags" env:"GUM_FILTER_PADDING"`
+
+	// Experimental features
+	Experimental    bool   `help:"Enable experimental features" default:"false" env:"GUM_EXPERIMENTAL" group:"Experimental"`
+	ConfigDelimiter string `help:"Allows to set a delimiter, so options can be set as value::config" default:"::" env:"GUM_FILTER_CONFIG_DELIMITER" group:"Experimental"`
+	OptionAsJSON    bool   `help:"Parse options as JSON (array or JSONL)" default:"false" env:"GUM_FILTER_OPTION_AS_JSON" group:"Experimental"`
 
 	// Deprecated: use [FuzzySort]. This will be removed at some point.
 	Sort bool `help:"Sort fuzzy results by their scores" default:"true" env:"GUM_FILTER_FUZZY_SORT" negatable:"" hidden:""`
