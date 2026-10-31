@@ -14,7 +14,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/gum/internal/stdin"
+	"charm.land/gum/v2/internal/stdin"
+	"charm.land/gum/v2/internal/tty"
 )
 
 // Run runs the format command.
@@ -41,6 +42,8 @@ func (o Options) Run() error {
 		return err
 	}
 
-	fmt.Print(output)
+	if _, err := fmt.Fprint(tty.Writer(), output); err != nil {
+		return fmt.Errorf("unable to write output: %w", err)
+	}
 	return nil
 }

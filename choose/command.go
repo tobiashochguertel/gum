@@ -8,25 +8,19 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/paginator"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/gum/internal/options"
-	"github.com/charmbracelet/gum/internal/stdin"
-	"github.com/charmbracelet/gum/internal/timeout"
-	"github.com/charmbracelet/gum/internal/tty"
-	"github.com/charmbracelet/gum/style"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/paginator"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/gum/v2/internal/options"
+	"charm.land/gum/v2/internal/stdin"
+	"charm.land/gum/v2/internal/timeout"
+	"charm.land/gum/v2/internal/tty"
+	"charm.land/gum/v2/style"
 )
 
 // Run provides a shell script interface for choosing between different through
 // options.
 func (o Options) Run() error {
-	var (
-		subduedStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#847A85", Dark: "#979797"})
-		verySubduedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DDDADA", Dark: "#3C3C3C"})
-	)
-
 	input, _ := stdin.Read(stdin.StripANSI(o.StripANSI))
 	if len(o.Options) > 0 && len(o.Selected) == 0 {
 		o.Selected = strings.Split(input, o.InputDelimiter)
@@ -144,8 +138,6 @@ func (o Options) Run() error {
 	pager.SetTotalPages((len(items) + o.Height - 1) / o.Height)
 	pager.PerPage = o.Height
 	pager.Type = paginator.Dots
-	pager.ActiveDot = subduedStyle.Render("•")
-	pager.InactiveDot = verySubduedStyle.Render("•")
 	pager.KeyMap = paginator.KeyMap{}
 	pager.Page = startingIndex / o.Height
 

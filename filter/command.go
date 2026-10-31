@@ -7,16 +7,16 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/gum/internal/files"
-	"github.com/charmbracelet/gum/internal/options"
-	"github.com/charmbracelet/gum/internal/stdin"
-	"github.com/charmbracelet/gum/internal/timeout"
-	"github.com/charmbracelet/gum/internal/tty"
-	"github.com/charmbracelet/gum/style"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/gum/v2/internal/files"
+	"charm.land/gum/v2/internal/options"
+	"charm.land/gum/v2/internal/stdin"
+	"charm.land/gum/v2/internal/timeout"
+	"charm.land/gum/v2/internal/tty"
+	"charm.land/gum/v2/style"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 )
@@ -28,12 +28,16 @@ func (o Options) Run() error {
 	i.Focus()
 
 	i.Prompt = o.Prompt
-	i.PromptStyle = o.PromptStyle.ToLipgloss()
-	i.PlaceholderStyle = o.PlaceholderStyle.ToLipgloss()
+	styles := i.Styles()
+	styles.Focused.Prompt = o.PromptStyle.ToLipgloss()
+	styles.Blurred.Prompt = o.PromptStyle.ToLipgloss()
+	styles.Focused.Placeholder = o.PlaceholderStyle.ToLipgloss()
+	styles.Blurred.Placeholder = o.PlaceholderStyle.ToLipgloss()
+	i.SetStyles(styles)
 	i.Placeholder = o.Placeholder
-	i.Width = o.Width
+	i.SetWidth(o.Width)
 
-	v := viewport.New(o.Width, o.Height)
+	v := viewport.New(viewport.WithWidth(o.Width), viewport.WithHeight(o.Height))
 
 	if len(o.Options) == 0 {
 		if input, _ := stdin.Read(stdin.StripANSI(o.StripANSI)); input != "" {
@@ -78,11 +82,7 @@ func (o Options) Run() error {
 
 	programOptions := []tea.ProgramOption{
 		tea.WithOutput(os.Stderr),
-		tea.WithReportFocus(),
 		tea.WithContext(ctx),
-	}
-	if o.Height == 0 {
-		programOptions = append(programOptions, tea.WithAltScreen())
 	}
 
 	var matches []fuzzy.Match
@@ -209,7 +209,7 @@ func (o Options) Run() error {
 }
 
 func (o Options) checkSelected(m model) {
-	out := []string{}
+	out := make([]string, 0, len(m.selected))
 	for k := range m.selected {
 		out = append(out, m.choices[k])
 	}
