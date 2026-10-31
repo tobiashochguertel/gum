@@ -1,3 +1,4 @@
+// Package options parses gum option strings (JSON, JSONL, and value::config forms).
 package options
 
 import (
@@ -54,7 +55,7 @@ func ParseJSONOptions(input string) ([]Option, error) {
 }
 
 // ParseConfigDelimiter parses a config string using a delimiter.
-// Format: {"disabled": true} or other JSON config
+// Format: {"disabled": true} or other JSON config.
 func ParseConfigDelimiter(configStr string) (Config, error) {
 	var cfg Config
 	configStr = strings.TrimSpace(configStr)
@@ -74,7 +75,7 @@ func ParseConfigDelimiter(configStr string) (Config, error) {
 // - "label:value::config"
 // - "value::config" (if labelDelimiter is empty)
 // - "label:value" (if configDelimiter is empty)
-// - "value" (if both delimiters are empty)
+// - "value" (if both delimiters are empty).
 func ParseOptionsWithDelimiters(optionStr, labelDelimiter, configDelimiter string) (Option, error) {
 	var opt Option
 

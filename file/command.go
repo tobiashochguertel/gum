@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/bubbles/filepicker"
-	"github.com/charmbracelet/bubbles/help"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/gum/internal/timeout"
-	"github.com/charmbracelet/gum/style"
+	"charm.land/bubbles/v2/filepicker"
+	"charm.land/bubbles/v2/help"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/gum/v2/internal/timeout"
+	"charm.land/gum/v2/style"
 )
 
 // Run is the interface to picking a file.
@@ -62,7 +62,7 @@ func (o Options) Run() error {
 	defer cancel()
 
 	tm, err := tea.NewProgram(
-		&m,
+		m,
 		tea.WithOutput(os.Stderr),
 		tea.WithContext(ctx),
 	).Run()

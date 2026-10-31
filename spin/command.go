@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/gum/internal/exit"
-	"github.com/charmbracelet/gum/internal/timeout"
-	"github.com/charmbracelet/gum/style"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/gum/v2/internal/exit"
+	"charm.land/gum/v2/internal/timeout"
+	"charm.land/gum/v2/style"
 	"github.com/charmbracelet/x/term"
 )
 

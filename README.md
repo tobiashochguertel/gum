@@ -20,7 +20,7 @@ The above example is running from a single shell script ([source](./examples/dem
 ## Tutorial
 
 Gum provides highly configurable, ready-to-use utilities to help you write
-useful shell scripts and dotfiles aliases with just a few lines of code.
+useful shell scripts and dotfile aliases with just a few lines of code.
 Let's build a simple script to help you write
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary)
 for your dotfiles.
@@ -67,6 +67,9 @@ brew install gum
 
 # Arch Linux (btw)
 pacman -S gum
+
+# Fedora or EPEL 10
+dnf install gum
 
 # Nix
 nix-env -iA nixpkgs.gum
@@ -134,7 +137,7 @@ Or download it:
 Or just install it with `go`:
 
 ```bash
-go install github.com/charmbracelet/gum@latest
+go install charm.land/gum/v2@latest
 ```
 
 [releases]: https://github.com/charmbracelet/gum/releases
@@ -367,13 +370,13 @@ named emojis see the [GitHub API](https://api.github.com/emojis).
 
 ## Log
 
-`log` logs messages to the terminal at using different levels and styling using
+`log` logs messages to the terminal using different levels and styling using
 the [`charmbracelet/log`](https://github.com/charmbracelet/log) library.
 
 ```bash
 # Log some debug information.
 gum log --structured --level debug "Creating file..." name file.txt
-# DEBUG Unable to create file. name=temp.txt
+# DEBUG Creating file... name=file.txt
 
 # Log some error.
 gum log --structured --level error "Unable to create file." name file.txt
