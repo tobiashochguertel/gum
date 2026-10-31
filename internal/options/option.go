@@ -1,5 +1,4 @@
 // Package options parses gum option strings (JSON, JSONL, and value::config forms).
-
 package options
 
 import (
