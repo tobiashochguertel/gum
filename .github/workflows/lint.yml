@@ -6,3 +6,8 @@ on:
 jobs:
   lint:
     uses: charmbracelet/meta/.github/workflows/lint.yml@main
+    with:
+      # upstream's default path resolves to <owner>/meta/golangci.yml — breaks on forks
+      golangci_path: ../../charmbracelet/meta/golangci.yml
+      # pin to the version upstream's lint last ran green with at v2.0.2
+      golangci_version: v2.13.2
