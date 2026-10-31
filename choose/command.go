@@ -35,7 +35,7 @@ func (o Options) Run() error {
 	var parsedOptions []options.Option
 	var err error
 
-	if o.Experimental && o.OptionAsJSON {
+	if o.Experimental && o.OptionAsJSON { //nolint:nestif
 		// Parse as JSON/JSONL
 		parsedOptions, err = options.ParseJSONOptions(strings.Join(o.Options, "\n"))
 		if err != nil {
